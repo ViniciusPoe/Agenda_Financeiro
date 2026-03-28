@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTENTICACAO
+// ============================================
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ============================================
+// MODULO AGENDA
+// ============================================
+
+model AgendaCategory {
+  id        String  @id @default(cuid())
+  name      String  @db.VarChar(100)
+  color     String  @db.VarChar(7)
+  icon      String? @db.VarChar(50)
+  createdAt DateTime @default(now())
+
+  events AgendaEvent[]
+
+  @@map("agenda_categories")
+}
+
+model AgendaEvent {
+  id          String        @id @default(cuid())
+  title       String        @db.VarChar(255)
+  description String?       @db.Text
+  date        DateTime      @db.Date
+  startTime   String?       @db.VarChar(5)
+  endTime     String?       @db.VarChar(5)
+  allDay      Boolean       @default(false)
+  priority    EventPriority @default(MEDIUM)
+  status      EventStatus   @default(PENDING)
+
+  categoryId String?
+  category   AgendaCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  transactionId String?      @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  recurrenceRule String?   @db.VarChar(500)
+  recurrenceEnd  DateTime? @db.Date
+  parentEventId  String?
+  parentEvent    AgendaEvent?  @relation("EventRecurrence", fields: [parentEventId], references: [id], onDelete: Cascade)
+  childEvents    AgendaEvent[] @relation("EventRecurrence")
+
+  reminderMinutes Int?
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([date])
+  @@index([status])
+  @@index([priority])
+  @@index([categoryId])
+  @@index([date, status])
+  @@map("agenda_events")
+}
+
+enum EventPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum EventStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================
+// MODULO FINANCEIRO
+// ============================================
+
+model FinanceCategory {
+  id           String          @id @default(cuid())
+  name         String          @db.VarChar(100)
+  type         TransactionType
+  color        String          @db.VarChar(7)
+  icon         String?         @db.VarChar(50)
+  budgetAmount Decimal?        @db.Decimal(12, 2)
+  createdAt    DateTime        @default(now())
+
+  transactions Transaction[]
+
+  @@map("finance_categories")
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  description String          @db.VarChar(255)
+  amount      Decimal         @db.Decimal(12, 2)
+  type        TransactionType
+  date        DateTime        @db.Date
+  notes       String?         @db.Text
+
+  categoryId String
+  category   FinanceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  isRecurring    Boolean   @default(false)
+  recurrenceRule String?   @db.VarChar(500)
+  recurrenceEnd  DateTime? @db.Date
+  parentId       String?
+  parent         Transaction?  @relation("TransactionRecurrence", fields: [parentId], references: [id], onDelete: Cascade)
+  children       Transaction[] @relation("TransactionRecurrence")
+
+  paid   Boolean   @default(false)
+  paidAt DateTime?
+  dueDate DateTime? @db.Date
+
+  agendaEvent AgendaEvent?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([type])
+  @@index([categoryId])
+  @@index([paid])
+  @@index([dueDate])
+  @@index([date, type])
+  @@map("transactions")
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  month      Int      @db.SmallInt
+  year       Int      @db.SmallInt
+  totalLimit Decimal  @db.Decimal(12, 2)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([month, year])
+  @@map("budgets")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
