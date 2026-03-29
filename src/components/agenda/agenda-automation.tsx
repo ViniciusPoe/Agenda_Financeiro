@@ -5,7 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 const REMINDER_LOOKAHEAD_MINUTES = 30;
-const POLL_INTERVAL_MS = 60_000;
+const REMINDER_POLL_INTERVAL_MS = 60_000;
+const STATUS_SYNC_INTERVAL_MS = 5 * 60_000;
+const REMINDER_THROTTLE_KEY = "agenda-reminder-poll-at-v1";
+const STATUS_SYNC_THROTTLE_KEY = "agenda-status-sync-at-v1";
 const SEEN_ALERTS_STORAGE_KEY = "agenda-seen-alerts-v1";
 const PERMISSION_PROMPT_STORAGE_KEY = "agenda-notification-prompted-v1";
 
@@ -39,6 +42,8 @@ export function AgendaAutomation() {
   const router = useRouter();
   const pathname = usePathname();
   const seenAlertsRef = useRef<Set<string>>(new Set());
+  const reminderInFlightRef = useRef(false);
+  const syncInFlightRef = useRef(false);
 
   useEffect(() => {
     seenAlertsRef.current = loadSeenAlerts();
@@ -51,22 +56,55 @@ export function AgendaAutomation() {
 
     let cancelled = false;
 
-    async function runAutomation() {
+    async function runReminderPoll(force = false) {
       if (cancelled) return;
+      if (!shouldPollRemindersForPath(pathname)) return;
+      if (!isDocumentVisible()) return;
+      if (!force && !claimAutomationWindow(REMINDER_THROTTLE_KEY, 45_000)) {
+        return;
+      }
+      if (reminderInFlightRef.current) return;
 
-      await syncStatuses(pathname, router);
-      await fetchReminderAlerts(seenAlertsRef.current);
+      reminderInFlightRef.current = true;
+      try {
+        await fetchReminderAlerts(seenAlertsRef.current);
+      } finally {
+        reminderInFlightRef.current = false;
+      }
     }
 
-    void runAutomation();
+    async function runStatusSync(force = false) {
+      if (cancelled) return;
+      if (!shouldSyncStatusesForPath(pathname)) return;
+      if (!isDocumentVisible()) return;
+      if (!force && !claimAutomationWindow(STATUS_SYNC_THROTTLE_KEY, 4 * 60_000)) {
+        return;
+      }
+      if (syncInFlightRef.current) return;
 
-    const intervalId = window.setInterval(() => {
-      void runAutomation();
-    }, POLL_INTERVAL_MS);
+      syncInFlightRef.current = true;
+      try {
+        await syncStatuses(pathname, router);
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    }
+
+    void runReminderPoll(true);
+    void runStatusSync(true);
+
+    const reminderIntervalId = window.setInterval(() => {
+      void runReminderPoll();
+    }, REMINDER_POLL_INTERVAL_MS);
+
+    const statusSyncIntervalId = window.setInterval(() => {
+      void runStatusSync();
+    }, STATUS_SYNC_INTERVAL_MS);
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
-        void runAutomation();
+        void runReminderPoll();
+        void runStatusSync();
       }
     }
 
@@ -75,7 +113,8 @@ export function AgendaAutomation() {
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      window.clearInterval(reminderIntervalId);
+      window.clearInterval(statusSyncIntervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleVisibilityChange);
     };
@@ -199,12 +238,37 @@ function maybePromptNotificationPermission() {
 
 function shouldRefreshPath(pathname: string) {
   return (
-    pathname === "/" ||
     pathname === "/agenda" ||
-    pathname === "/agenda/relatorios" ||
-    pathname === "/financeiro" ||
-    pathname === "/financeiro/relatorios"
+    pathname === "/agenda/relatorios"
   );
+}
+
+function shouldSyncStatusesForPath(pathname: string) {
+  return pathname === "/agenda" || pathname === "/agenda/relatorios";
+}
+
+function shouldPollRemindersForPath(pathname: string) {
+  return pathname.startsWith("/agenda");
+}
+
+function isDocumentVisible() {
+  return typeof document === "undefined" || document.visibilityState === "visible";
+}
+
+function claimAutomationWindow(storageKey: string, intervalMs: number) {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  const now = Date.now();
+  const previous = Number(window.localStorage.getItem(storageKey) ?? "0");
+
+  if (Number.isFinite(previous) && now - previous < intervalMs) {
+    return false;
+  }
+
+  window.localStorage.setItem(storageKey, String(now));
+  return true;
 }
 
 function loadSeenAlerts() {

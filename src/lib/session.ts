@@ -1,87 +1,77 @@
-import { randomUUID } from "node:crypto";
-import { prisma } from "@/lib/prisma";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 const SESSION_EXPIRY_DAYS = parseInt(process.env.SESSION_EXPIRY_DAYS ?? "7");
 const SESSION_COOKIE_NAME = "session_token";
-const SESSION_VALIDATION_CACHE_MS = parseInt(
-  process.env.SESSION_VALIDATION_CACHE_MS ?? "30000"
-);
+const SESSION_SECRET =
+  process.env.SESSION_SECRET ?? process.env.AUTH_PASSWORD ?? "";
 
-type SessionValidationCacheEntry = {
-  cacheUntil: number;
-  expiresAt: number;
+type SessionPayload = {
+  exp: number;
+  sid: string;
 };
 
-const globalForSession = globalThis as typeof globalThis & {
-  sessionValidationCache: Map<string, SessionValidationCacheEntry> | undefined;
-};
+function encodePayload(payload: SessionPayload) {
+  return Buffer.from(JSON.stringify(payload)).toString("base64url");
+}
 
-const sessionValidationCache =
-  globalForSession.sessionValidationCache ?? new Map();
+function decodePayload(encoded: string): SessionPayload | null {
+  try {
+    return JSON.parse(
+      Buffer.from(encoded, "base64url").toString("utf8")
+    ) as SessionPayload;
+  } catch {
+    return null;
+  }
+}
 
-globalForSession.sessionValidationCache = sessionValidationCache;
-
-function clearSessionValidationCache(token: string) {
-  sessionValidationCache.delete(token);
+function signPayload(encodedPayload: string) {
+  return createHmac("sha256", SESSION_SECRET)
+    .update(encodedPayload)
+    .digest("base64url");
 }
 
 export async function createSession(): Promise<string> {
-  const token = randomUUID() + "-" + randomUUID();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + SESSION_EXPIRY_DAYS);
-
-  await prisma.session.create({
-    data: { token, expiresAt },
+  const expiresAt = Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+  const encodedPayload = encodePayload({
+    exp: expiresAt,
+    sid: randomUUID(),
   });
 
-  sessionValidationCache.set(token, {
-    cacheUntil: Math.min(
-      expiresAt.getTime(),
-      Date.now() + SESSION_VALIDATION_CACHE_MS
-    ),
-    expiresAt: expiresAt.getTime(),
-  });
-
-  return token;
+  return `${encodedPayload}.${signPayload(encodedPayload)}`;
 }
 
 export async function validateSession(token: string): Promise<boolean> {
-  const now = Date.now();
-  const cached = sessionValidationCache.get(token);
-
-  if (cached && cached.cacheUntil > now && cached.expiresAt > now) {
-    return true;
-  }
-
-  const session = await prisma.session.findUnique({
-    where: { token },
-  });
-
-  if (!session) {
-    clearSessionValidationCache(token);
+  if (!SESSION_SECRET) {
     return false;
   }
 
-  if (session.expiresAt.getTime() <= now) {
-    clearSessionValidationCache(token);
-    await prisma.session.delete({ where: { token } }).catch(() => {});
+  const [encodedPayload, providedSignature, ...rest] = token.split(".");
+  if (!encodedPayload || !providedSignature || rest.length > 0) {
     return false;
   }
 
-  sessionValidationCache.set(token, {
-    cacheUntil: Math.min(
-      session.expiresAt.getTime(),
-      now + SESSION_VALIDATION_CACHE_MS
-    ),
-    expiresAt: session.expiresAt.getTime(),
-  });
+  const expectedSignature = signPayload(encodedPayload);
+  const expectedBuffer = Buffer.from(expectedSignature);
+  const providedBuffer = Buffer.from(providedSignature);
 
-  return true;
+  if (expectedBuffer.length !== providedBuffer.length) {
+    return false;
+  }
+
+  if (!timingSafeEqual(expectedBuffer, providedBuffer)) {
+    return false;
+  }
+
+  const payload = decodePayload(encodedPayload);
+  if (!payload || typeof payload.exp !== "number") {
+    return false;
+  }
+
+  return payload.exp > Date.now();
 }
 
 export async function deleteSession(token: string): Promise<void> {
-  clearSessionValidationCache(token);
-  await prisma.session.delete({ where: { token } }).catch(() => {});
+  void token;
 }
 
 export { SESSION_COOKIE_NAME, SESSION_EXPIRY_DAYS };

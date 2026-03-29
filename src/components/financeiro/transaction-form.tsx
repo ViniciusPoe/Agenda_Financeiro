@@ -41,6 +41,7 @@ export function TransactionForm({ transaction, defaultType = "EXPENSE" }: Transa
   const {
     register,
     handleSubmit,
+    getValues,
     setValue,
     watch,
     formState: { errors },
@@ -80,14 +81,17 @@ export function TransactionForm({ transaction, defaultType = "EXPENSE" }: Transa
         if (res.data) {
           setCategories(res.data);
           // Clear categoryId if it doesn't belong to the new type
-          if (categoryId) {
-            const found = (res.data as FinanceCategory[]).find((c) => c.id === categoryId);
+          const currentCategoryId = getValues("categoryId");
+          if (currentCategoryId) {
+            const found = (res.data as FinanceCategory[]).find(
+              (c) => c.id === currentCategoryId
+            );
             if (!found) setValue("categoryId", "");
           }
         }
       })
       .catch(() => {});
-  }, [categoryId, selectedType, setValue]);
+  }, [getValues, selectedType, setValue]);
 
   function buildCreatePayload(data: FormValues) {
     return {
