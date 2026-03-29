@@ -29,33 +29,34 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const data = parsed.data;
     const normalizedName = data.name?.trim();
 
-    if (normalizedName) {
-      const duplicate = await prisma.agendaCategory.findFirst({
-        where: {
-          name: { equals: normalizedName },
-          id: { not: id },
-        },
-      });
-
-      if (duplicate) {
-        return NextResponse.json(
-          { error: "Ja existe uma categoria com esse nome" },
-          { status: 409 }
-        );
-      }
-    }
-
     const updateData: Record<string, unknown> = {};
     if (normalizedName !== undefined) updateData.name = normalizedName;
     if (data.color !== undefined) updateData.color = data.color;
     if (data.icon !== undefined) updateData.icon = data.icon || null;
 
-    const category = await prisma.agendaCategory.update({
-      where: { id },
-      data: updateData,
+    type TxResult =
+      | { conflict: true }
+      | { conflict: false; category: Awaited<ReturnType<typeof prisma.agendaCategory.update>> };
+
+    const result = await prisma.$transaction<TxResult>(async (tx) => {
+      if (normalizedName) {
+        const duplicate = await tx.agendaCategory.findFirst({
+          where: { name: { equals: normalizedName }, id: { not: id } },
+        });
+        if (duplicate) return { conflict: true };
+      }
+      const category = await tx.agendaCategory.update({ where: { id }, data: updateData });
+      return { conflict: false, category };
     });
 
-    return NextResponse.json({ data: category });
+    if (result.conflict) {
+      return NextResponse.json(
+        { error: "Ja existe uma categoria com esse nome" },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json({ data: result.category });
   } catch (error) {
     console.error("[PUT /api/agenda/categorias/[id]]", error);
     return NextResponse.json(

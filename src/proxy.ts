@@ -32,6 +32,9 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
   if (!token) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -39,6 +42,14 @@ export async function proxy(request: NextRequest) {
   const isValid = await validateSession(token);
 
   if (!isValid) {
+    if (pathname.startsWith("/api/")) {
+      const response = NextResponse.json(
+        { error: "Sessao invalida ou expirada" },
+        { status: 401 }
+      );
+      response.cookies.delete(SESSION_COOKIE_NAME);
+      return response;
+    }
     const redirectResponse = NextResponse.redirect(
       new URL("/login", request.url)
     );

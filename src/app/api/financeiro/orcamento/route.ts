@@ -119,7 +119,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Mes ou ano invalido" }, { status: 400 });
     }
 
-    await prisma.budget.deleteMany({ where: { month, year } });
+    const result = await prisma.budget.deleteMany({ where: { month, year } });
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Orcamento nao encontrado" }, { status: 404 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

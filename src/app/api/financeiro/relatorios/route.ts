@@ -83,35 +83,36 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => parseFloat(b.total) - parseFloat(a.total));
 
     const monthPeriods = buildMonthPeriods(year, month);
+    const periodStart = new Date(monthPeriods[0].year, monthPeriods[0].month - 1, 1);
+    const lastPeriod = monthPeriods[monthPeriods.length - 1];
+    const periodEnd = new Date(lastPeriod.year, lastPeriod.month, 0, 23, 59, 59);
 
-    const byMonth = await Promise.all(
-      monthPeriods.map(async ({ month: periodMonth, year: periodYear }) => {
-        const mDateFrom = new Date(periodYear, periodMonth - 1, 1);
-        const mDateTo = new Date(periodYear, periodMonth, 0, 23, 59, 59);
+    type MonthlyRow = { y: number; m: number; type: string; total: string };
+    const monthlyRaw = await prisma.$queryRaw<MonthlyRow[]>`
+      SELECT YEAR(date) AS y, MONTH(date) AS m, type, CAST(SUM(amount) AS CHAR) AS total
+      FROM transactions
+      WHERE date >= ${periodStart} AND date <= ${periodEnd}
+      GROUP BY YEAR(date), MONTH(date), type
+    `;
 
-        const [mIncome, mExpense] = await Promise.all([
-          prisma.transaction.aggregate({
-            where: { type: "INCOME", date: { gte: mDateFrom, lte: mDateTo } },
-            _sum: { amount: true },
-          }),
-          prisma.transaction.aggregate({
-            where: { type: "EXPENSE", date: { gte: mDateFrom, lte: mDateTo } },
-            _sum: { amount: true },
-          }),
-        ]);
+    const monthlyMap = new Map<string, MonthlyRow>();
+    for (const row of monthlyRaw) {
+      monthlyMap.set(`${Number(row.y)}-${Number(row.m)}-${row.type}`, row);
+    }
 
-        const mIncomeVal = parseFloat(String(mIncome._sum.amount ?? "0"));
-        const mExpenseVal = parseFloat(String(mExpense._sum.amount ?? "0"));
-
-        return {
-          month: periodMonth,
-          year: periodYear,
-          income: mIncomeVal.toFixed(2),
-          expense: mExpenseVal.toFixed(2),
-          balance: (mIncomeVal - mExpenseVal).toFixed(2),
-        };
-      })
-    );
+    const byMonth = monthPeriods.map(({ month: periodMonth, year: periodYear }) => {
+      const incomeRow = monthlyMap.get(`${periodYear}-${periodMonth}-INCOME`);
+      const expenseRow = monthlyMap.get(`${periodYear}-${periodMonth}-EXPENSE`);
+      const mIncomeVal = parseFloat(incomeRow?.total ?? "0");
+      const mExpenseVal = parseFloat(expenseRow?.total ?? "0");
+      return {
+        month: periodMonth,
+        year: periodYear,
+        income: mIncomeVal.toFixed(2),
+        expense: mExpenseVal.toFixed(2),
+        balance: (mIncomeVal - mExpenseVal).toFixed(2),
+      };
+    });
 
     return NextResponse.json({
       data: {

@@ -64,12 +64,16 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
       .then(setData)
-      .catch(console.error)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -77,6 +81,26 @@ export default function DashboardPage() {
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <div>
+          <p className="font-semibold">Erro ao carregar o dashboard</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Nao foi possivel conectar ao servidor.
+          </p>
+        </div>
+        <button
+          onClick={() => { setError(false); setLoading(true); fetch("/api/dashboard").then(r => r.ok ? r.json() : Promise.reject()).then(setData).catch(() => setError(true)).finally(() => setLoading(false)); }}
+          className="text-sm underline text-primary"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

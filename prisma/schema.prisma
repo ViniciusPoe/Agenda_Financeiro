@@ -11,17 +11,6 @@ datasource db {
 // AUTENTICACAO
 // ============================================
 
-model Session {
-  id        String   @id @default(cuid())
-  token     String   @unique @db.VarChar(255)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([token])
-  @@index([expiresAt])
-  @@map("sessions")
-}
-
 model LoginRateLimit {
   key             String   @id @db.VarChar(64)
   attempts        Int      @default(0)
@@ -72,8 +61,6 @@ model AgendaEvent {
   parentEventId  String?
   parentEvent    AgendaEvent?  @relation("EventRecurrence", fields: [parentEventId], references: [id], onDelete: Cascade)
   childEvents    AgendaEvent[] @relation("EventRecurrence")
-
-  reminderMinutes Int?
 
   isFreelancer    Boolean  @default(false)
   freelanceAmount Decimal? @db.Decimal(12, 2)
@@ -176,25 +163,4 @@ model Budget {
 enum TransactionType {
   INCOME
   EXPENSE
-}
-
-// ============================================
-// WEB PUSH NOTIFICATIONS
-// ============================================
-
-model PushSubscription {
-  id        String   @id @default(cuid())
-  endpoint  String   @unique @db.VarChar(512)
-  p256dh    String   @db.VarChar(255)
-  auth      String   @db.VarChar(255)
-  createdAt DateTime @default(now())
-
-  @@map("push_subscriptions")
-}
-
-model SentPushAlert {
-  alertKey String   @id @db.VarChar(255)
-  sentAt   DateTime @default(now())
-
-  @@map("sent_push_alerts")
 }
