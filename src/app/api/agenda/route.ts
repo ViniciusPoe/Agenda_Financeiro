@@ -133,7 +133,6 @@ export async function POST(request: NextRequest) {
         recurrenceEnd: data.recurrenceEnd
           ? new Date(data.recurrenceEnd + "T00:00:00")
           : undefined,
-        reminderMinutes: data.reminderMinutes,
         isFreelancer: data.isFreelancer ?? false,
         freelanceAmount:
           data.freelanceAmount != null ? data.freelanceAmount : undefined,

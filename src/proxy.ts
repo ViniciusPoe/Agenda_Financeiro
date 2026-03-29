@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE_NAME, validateSession } from "@/lib/session";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/push/send-reminders"];
+const PUBLIC_PATHS = ["/login", "/maintenance", "/api/auth"];
+const SESSION_COOKIE_NAME = "session_token";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (process.env.MAINTENANCE_MODE === "true") {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Sistema em manutencao" },
+        { status: 503 }
+      );
+    }
+
+    if (pathname !== "/maintenance") {
+      return NextResponse.redirect(new URL("/maintenance", request.url));
+    }
+
+    return NextResponse.next();
+  }
 
   const isPublic = PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(path + "/")
@@ -20,6 +35,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  const { validateSession } = await import("@/lib/session");
   const isValid = await validateSession(token);
 
   if (!isValid) {

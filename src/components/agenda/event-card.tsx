@@ -10,7 +10,6 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
-  Bell,
   Ban,
   Briefcase,
 } from "lucide-react";
@@ -29,7 +28,6 @@ import {
 import {
   EVENT_PRIORITY_LABELS,
   EVENT_PRIORITY_COLORS,
-  REMINDER_OPTIONS,
   EVENT_STATUS_LABELS,
   EVENT_STATUS_COLORS,
 } from "@/lib/constants";
@@ -50,13 +48,6 @@ const PRIORITY_BORDER: Record<string, string> = {
   HIGH: "border-l-orange-400",
   URGENT: "border-l-red-500",
 };
-
-function formatReminderLabel(reminderMinutes: number): string {
-  return (
-    REMINDER_OPTIONS.find((option) => option.value === reminderMinutes)?.label ??
-    `${reminderMinutes} min antes`
-  );
-}
 
 interface EventCardProps {
   event: AgendaEvent;
@@ -384,14 +375,6 @@ export function EventCard({
                     style={{ backgroundColor: event.category.color }}
                   />
                   {event.category.name}
-                </span>
-              )}
-
-              {/* Lembrete */}
-              {event.reminderMinutes != null && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Bell className="h-3 w-3" />
-                  {formatReminderLabel(event.reminderMinutes)}
                 </span>
               )}
 

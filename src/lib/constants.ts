@@ -60,16 +60,6 @@ export const DEFAULT_FINANCE_CATEGORIES = [
   { name: "Outros", type: "EXPENSE", color: "#6B7280", icon: "more-horizontal" },
 ];
 
-export const REMINDER_OPTIONS = [
-  { label: "5 minutos antes", value: 5 },
-  { label: "15 minutos antes", value: 15 },
-  { label: "30 minutos antes", value: 30 },
-  { label: "1 hora antes", value: 60 },
-  { label: "2 horas antes", value: 120 },
-  { label: "1 dia antes", value: 1440 },
-  { label: "2 dias antes", value: 2880 },
-];
-
 export const RECURRENCE_OPTIONS = [
   { label: "Nao repetir", value: "" },
   { label: "Diariamente", value: "FREQ=DAILY" },

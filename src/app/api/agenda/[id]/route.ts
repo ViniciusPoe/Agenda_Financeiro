@@ -105,8 +105,6 @@ export async function PUT(
       updateData.recurrenceEnd = data.recurrenceEnd
         ? new Date(data.recurrenceEnd + "T00:00:00")
         : null;
-    if (data.reminderMinutes !== undefined)
-      updateData.reminderMinutes = data.reminderMinutes ?? null;
     if (data.isFreelancer !== undefined)
       updateData.isFreelancer = data.isFreelancer;
     if (data.freelanceAmount !== undefined)

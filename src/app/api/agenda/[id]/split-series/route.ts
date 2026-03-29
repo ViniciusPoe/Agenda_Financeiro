@@ -21,7 +21,6 @@ type RecurringInstanceSnapshot = {
   categoryId: string | null;
   recurrenceRule: string | null;
   recurrenceEnd: Date | null;
-  reminderMinutes: number | null;
   isFreelancer: boolean;
   freelanceAmount: unknown;
   parentEvent: {
@@ -78,10 +77,6 @@ function buildCreatePayloadFromInstance(
         : instance.categoryId ?? undefined,
     recurrenceRule,
     recurrenceEnd: recurrenceRule ? recurrenceEnd : undefined,
-    reminderMinutes:
-      patch.reminderMinutes !== undefined
-        ? patch.reminderMinutes ?? undefined
-        : instance.reminderMinutes ?? undefined,
     isFreelancer,
     freelanceAmount: isFreelancer
       ? patch.freelanceAmount !== undefined
@@ -212,7 +207,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
           recurrenceEnd: data.recurrenceEnd
             ? new Date(data.recurrenceEnd + "T00:00:00")
             : undefined,
-          reminderMinutes: data.reminderMinutes,
           isFreelancer: data.isFreelancer ?? false,
           freelanceAmount:
             data.freelanceAmount != null ? data.freelanceAmount : undefined,

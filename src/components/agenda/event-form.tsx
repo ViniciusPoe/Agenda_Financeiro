@@ -31,7 +31,6 @@ import type { z } from "zod";
 import {
   EVENT_PRIORITY_LABELS,
   EVENT_STATUS_LABELS,
-  REMINDER_OPTIONS,
 } from "@/lib/constants";
 import { cn, toDateOnlyString } from "@/lib/utils";
 import type { AgendaCategory, AgendaEvent } from "@/types/agenda";
@@ -78,7 +77,6 @@ export function EventForm({ event, defaultDate }: EventFormProps) {
       priority: event?.priority ?? "MEDIUM",
       status: event?.status ?? "PENDING",
       categoryId: event?.categoryId ?? undefined,
-      reminderMinutes: event?.reminderMinutes ?? undefined,
       recurrenceRule: event?.recurrenceRule ?? undefined,
       recurrenceEnd: event?.recurrenceEnd
         ? toDateOnlyString(event.recurrenceEnd)
@@ -92,15 +90,11 @@ export function EventForm({ event, defaultDate }: EventFormProps) {
   const priority = watch("priority");
   const status = watch("status");
   const categoryId = watch("categoryId");
-  const reminderMinutes = watch("reminderMinutes");
   const recurrenceRule = watch("recurrenceRule");
   const recurrenceEnd = watch("recurrenceEnd");
   const watchedDate = watch("date");
   const isFreelancer = watch("isFreelancer");
   const selectedCategory = categories.find((cat) => cat.id === categoryId);
-  const selectedReminder = REMINDER_OPTIONS.find(
-    (option) => option.value === reminderMinutes
-  );
 
   useEffect(() => {
     fetch("/api/agenda/categorias")
@@ -119,7 +113,6 @@ export function EventForm({ event, defaultDate }: EventFormProps) {
       startTime: data.allDay ? undefined : data.startTime ?? undefined,
       endTime: data.allDay ? undefined : data.endTime ?? undefined,
       categoryId: data.categoryId ?? undefined,
-      reminderMinutes: data.reminderMinutes ?? undefined,
       recurrenceRule: data.recurrenceRule ?? undefined,
       recurrenceEnd: data.recurrenceRule
         ? data.recurrenceEnd ?? undefined
@@ -137,7 +130,6 @@ export function EventForm({ event, defaultDate }: EventFormProps) {
       startTime: data.allDay ? null : data.startTime ?? null,
       endTime: data.allDay ? null : data.endTime ?? null,
       categoryId: data.categoryId ?? null,
-      reminderMinutes: data.reminderMinutes ?? null,
       recurrenceRule: data.recurrenceRule ?? null,
       recurrenceEnd: data.recurrenceRule ? data.recurrenceEnd ?? null : null,
       isFreelancer: data.isFreelancer,
@@ -397,39 +389,6 @@ export function EventForm({ event, defaultDate }: EventFormProps) {
                     />
                     {category.name}
                   </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Lembrete</Label>
-          <Select
-            value={reminderMinutes !== undefined ? String(reminderMinutes) : "none"}
-            onValueChange={(value) =>
-              setValue(
-                "reminderMinutes",
-                value === "none" || !value ? undefined : Number(value)
-              )
-            }
-          >
-            <SelectTrigger className="w-full">
-              <span
-                data-slot="select-value"
-                className={cn(
-                  "flex flex-1 text-left",
-                  reminderMinutes === undefined && "text-muted-foreground"
-                )}
-              >
-                {selectedReminder?.label ?? "Sem lembrete"}
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Sem lembrete</SelectItem>
-              {REMINDER_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={String(option.value)}>
-                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>

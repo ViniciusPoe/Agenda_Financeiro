@@ -84,7 +84,6 @@ export async function GET(request: NextRequest) {
         );
       }).length,
       allDay: periodEvents.filter((event) => event.allDay).length,
-      withReminder: periodEvents.filter((event) => event.reminderMinutes != null).length,
       completionRate:
         periodEvents.length > 0
           ? Number(((completedCount / periodEvents.length) * 100).toFixed(1))

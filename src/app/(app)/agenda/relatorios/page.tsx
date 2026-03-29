@@ -36,7 +36,6 @@ interface ReportData {
     cancelled: number;
     overdue: number;
     allDay: number;
-    withReminder: number;
     completionRate: number;
   };
   byCategory: Array<{
@@ -338,9 +337,9 @@ export default function AgendaRelatoriosPage() {
               iconClassName="bg-red-100 text-red-600"
             />
             <MetricCard
-              title="Com lembrete"
-              value={String(reportData?.summary.withReminder ?? 0)}
-              helper={`${reportData?.summary.allDay ?? 0} evento(s) de dia inteiro`}
+              title="Dia inteiro"
+              value={String(reportData?.summary.allDay ?? 0)}
+              helper="Eventos sem horario definido"
               icon={Clock3}
               iconClassName="bg-amber-100 text-amber-700"
             />

@@ -51,7 +51,6 @@ export const createEventSchema = z.object({
     emptyStringToUndefined,
     dateStringSchema.optional()
   ),
-  reminderMinutes: z.number().int().min(0).optional(),
   isFreelancer: z.boolean().optional().default(false),
   freelanceAmount: z.preprocess(
     emptyStringToNull,
@@ -87,10 +86,6 @@ export const updateEventSchema = z.object({
   recurrenceEnd: z.preprocess(
     emptyStringToNull,
     z.union([dateStringSchema, z.null()]).optional()
-  ),
-  reminderMinutes: z.preprocess(
-    emptyStringToNull,
-    z.union([z.number().int().min(0), z.null()]).optional()
   ),
   isFreelancer: z.boolean().optional(),
   freelanceAmount: z.preprocess(

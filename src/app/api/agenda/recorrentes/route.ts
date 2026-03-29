@@ -94,7 +94,6 @@ export async function POST(request: NextRequest) {
       priority: EventPriority;
       status: EventStatus;
       categoryId: string | null;
-      reminderMinutes: number | null;
       parentEventId: string;
     }> = [];
 
@@ -119,7 +118,6 @@ export async function POST(request: NextRequest) {
           priority: parent.priority,
           status: "PENDING", // instancias sempre iniciam como pendente
           categoryId: parent.categoryId,
-          reminderMinutes: parent.reminderMinutes,
           parentEventId: eventId,
         });
       }

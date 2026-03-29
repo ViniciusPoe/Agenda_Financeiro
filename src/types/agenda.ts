@@ -25,7 +25,6 @@ export interface AgendaEvent {
   recurrenceRule: string | null;
   recurrenceEnd: Date | null;
   parentEventId: string | null;
-  reminderMinutes: number | null;
   isFreelancer: boolean;
   freelanceAmount: string | null;
   completedAt: Date | null;
@@ -45,7 +44,6 @@ export interface CreateEventInput {
   categoryId?: string;
   recurrenceRule?: string;
   recurrenceEnd?: string;
-  reminderMinutes?: number;
   isFreelancer?: boolean;
   freelanceAmount?: string | null;
 }
