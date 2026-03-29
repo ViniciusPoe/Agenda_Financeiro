@@ -45,11 +45,11 @@ function createPrismaClient() {
     ssl: parseSslConfig(parsedUrl.searchParams.get("ssl")),
     connectionLimit: parseNumberEnv(
       "DATABASE_CONNECTION_LIMIT",
-      process.env.NODE_ENV === "production" ? 1 : 5
+      process.env.NODE_ENV === "production" ? 3 : 5
     ),
-    acquireTimeout: parseNumberEnv("DATABASE_POOL_ACQUIRE_TIMEOUT_MS", 5000),
-    connectTimeout: parseNumberEnv("DATABASE_CONNECT_TIMEOUT_MS", 5000),
-    idleTimeout: parseNumberEnv("DATABASE_POOL_IDLE_TIMEOUT_SECONDS", 15),
+    acquireTimeout: parseNumberEnv("DATABASE_POOL_ACQUIRE_TIMEOUT_MS", 15000),
+    connectTimeout: parseNumberEnv("DATABASE_CONNECT_TIMEOUT_MS", 15000),
+    idleTimeout: parseNumberEnv("DATABASE_POOL_IDLE_TIMEOUT_SECONDS", 30),
     minimumIdle: parseNonNegativeNumberEnv("DATABASE_POOL_MINIMUM_IDLE", 0),
   });
 
