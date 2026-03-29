@@ -16,7 +16,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Minha Agenda",
   description: "Sistema de agenda e controle financeiro pessoal",
-  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
