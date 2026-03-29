@@ -1,5 +1,25 @@
 import { z } from "zod";
 
+const dateStringSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data invalida");
+
+const timeStringSchema = z
+  .string()
+  .regex(/^\d{2}:\d{2}$/, "Hora invalida");
+
+const emptyStringToUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
+
+const emptyStringToNull = (value: unknown) =>
+  typeof value === "string" && value.trim() === "" ? null : value;
+
+const decimalStringSchema = z
+  .string()
+  .trim()
+  .regex(/^\d+(?:[.,]\d{1,2})?$/, "Valor invalido")
+  .transform((value) => value.replace(",", "."));
+
 // ============================================
 // AGENDA
 // ============================================
@@ -7,28 +27,86 @@ import { z } from "zod";
 export const createEventSchema = z.object({
   title: z.string().min(1, "Titulo obrigatorio").max(255),
   description: z.string().max(5000).optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data invalida"),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora invalida").optional(),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora invalida").optional(),
+  date: dateStringSchema,
+  startTime: z.preprocess(emptyStringToUndefined, timeStringSchema.optional()),
+  endTime: z.preprocess(emptyStringToUndefined, timeStringSchema.optional()),
   allDay: z.boolean().optional().default(false),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional().default("MEDIUM"),
-  status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]).optional().default("PENDING"),
-  categoryId: z.string().cuid().optional(),
-  recurrenceRule: z.string().max(500).optional(),
-  recurrenceEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  priority: z
+    .enum(["LOW", "MEDIUM", "HIGH", "URGENT"])
+    .optional()
+    .default("MEDIUM"),
+  status: z
+    .enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
+    .optional()
+    .default("PENDING"),
+  categoryId: z.preprocess(
+    emptyStringToUndefined,
+    z.string().min(1, "Categoria invalida").optional()
+  ),
+  recurrenceRule: z.preprocess(
+    emptyStringToUndefined,
+    z.string().max(500).optional()
+  ),
+  recurrenceEnd: z.preprocess(
+    emptyStringToUndefined,
+    dateStringSchema.optional()
+  ),
   reminderMinutes: z.number().int().min(0).optional(),
+  isFreelancer: z.boolean().optional().default(false),
+  freelanceAmount: z.preprocess(
+    emptyStringToNull,
+    z.union([decimalStringSchema, z.null()]).optional()
+  ),
 });
 
-export const updateEventSchema = createEventSchema.partial().extend({
+export const updateEventSchema = z.object({
+  title: z.string().min(1, "Titulo obrigatorio").max(255).optional(),
+  description: z.string().max(5000).optional(),
+  date: dateStringSchema.optional(),
+  startTime: z.preprocess(
+    emptyStringToNull,
+    z.union([timeStringSchema, z.null()]).optional()
+  ),
+  endTime: z.preprocess(
+    emptyStringToNull,
+    z.union([timeStringSchema, z.null()]).optional()
+  ),
+  allDay: z.boolean().optional(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+  status: z
+    .enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
+    .optional(),
+  categoryId: z.preprocess(
+    emptyStringToNull,
+    z.union([z.string().min(1, "Categoria invalida"), z.null()]).optional()
+  ),
+  recurrenceRule: z.preprocess(
+    emptyStringToNull,
+    z.union([z.string().max(500), z.null()]).optional()
+  ),
+  recurrenceEnd: z.preprocess(
+    emptyStringToNull,
+    z.union([dateStringSchema, z.null()]).optional()
+  ),
+  reminderMinutes: z.preprocess(
+    emptyStringToNull,
+    z.union([z.number().int().min(0), z.null()]).optional()
+  ),
+  isFreelancer: z.boolean().optional(),
+  freelanceAmount: z.preprocess(
+    emptyStringToNull,
+    z.union([decimalStringSchema, z.null()]).optional()
+  ),
   completedAt: z.string().datetime().nullable().optional(),
 });
 
 export const eventFiltersSchema = z.object({
-  dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateFrom: dateStringSchema.optional(),
+  dateTo: dateStringSchema.optional(),
   status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]).optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
-  categoryId: z.string().cuid().optional(),
+  categoryId: z.string().min(1, "Categoria invalida").optional(),
+  parentEventId: z.string().min(1, "Evento pai invalido").optional(),
   search: z.string().max(100).optional(),
 });
 
@@ -36,33 +114,96 @@ export const eventFiltersSchema = z.object({
 // FINANCEIRO
 // ============================================
 
-export const createTransactionSchema = z.object({
-  description: z.string().min(1, "Descricao obrigatoria").max(255),
-  amount: z.number().positive("Valor deve ser positivo"),
-  type: z.enum(["INCOME", "EXPENSE"]),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data invalida"),
-  notes: z.string().max(5000).optional(),
-  categoryId: z.string().min(1, "Categoria obrigatoria"),
-  isRecurring: z.boolean().optional().default(false),
-  recurrenceRule: z.string().max(500).optional(),
-  recurrenceEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  paid: z.boolean().optional().default(false),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-});
+export const createTransactionSchema = z
+  .object({
+    description: z.string().min(1, "Descricao obrigatoria").max(255),
+    amount: z.number().positive("Valor deve ser positivo"),
+    type: z.enum(["INCOME", "EXPENSE"]),
+    date: dateStringSchema,
+    notes: z.string().max(5000).optional(),
+    categoryId: z.string().min(1, "Categoria obrigatoria"),
+    isRecurring: z.boolean().optional().default(false),
+    recurrenceRule: z.preprocess(
+      emptyStringToUndefined,
+      z.string().max(500).optional()
+    ),
+    recurrenceEnd: z.preprocess(
+      emptyStringToUndefined,
+      dateStringSchema.optional()
+    ),
+    paid: z.boolean().optional().default(false),
+    dueDate: z.preprocess(emptyStringToUndefined, dateStringSchema.optional()),
+  })
+  .superRefine((data, ctx) => {
+    if (data.isRecurring && !data.recurrenceRule) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["recurrenceRule"],
+        message: "Regra de recorrencia obrigatoria para transacoes recorrentes",
+      });
+    }
 
-export const updateTransactionSchema = createTransactionSchema.partial().extend({
-  paidAt: z.string().datetime().nullable().optional(),
-});
+    if (data.recurrenceEnd && !data.recurrenceRule) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["recurrenceRule"],
+        message: "Defina a regra antes de informar a data final da recorrencia",
+      });
+    }
+  });
+
+export const updateTransactionSchema = z
+  .object({
+    description: z.string().min(1, "Descricao obrigatoria").max(255).optional(),
+    amount: z.number().positive("Valor deve ser positivo").optional(),
+    type: z.enum(["INCOME", "EXPENSE"]).optional(),
+    date: dateStringSchema.optional(),
+    notes: z.preprocess(
+      emptyStringToNull,
+      z.union([z.string().max(5000), z.null()]).optional()
+    ),
+    categoryId: z.string().min(1, "Categoria obrigatoria").optional(),
+    isRecurring: z.boolean().optional(),
+    recurrenceRule: z.preprocess(
+      emptyStringToNull,
+      z.union([z.string().max(500), z.null()]).optional()
+    ),
+    recurrenceEnd: z.preprocess(
+      emptyStringToNull,
+      z.union([dateStringSchema, z.null()]).optional()
+    ),
+    paid: z.boolean().optional(),
+    dueDate: z.preprocess(
+      emptyStringToNull,
+      z.union([dateStringSchema, z.null()]).optional()
+    ),
+    paidAt: z.string().datetime().nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.isRecurring === true && !data.recurrenceRule) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["recurrenceRule"],
+        message: "Regra de recorrencia obrigatoria para transacoes recorrentes",
+      });
+    }
+  });
 
 export const transactionFiltersSchema = z.object({
-  dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateFrom: dateStringSchema.optional(),
+  dateTo: dateStringSchema.optional(),
   type: z.enum(["INCOME", "EXPENSE"]).optional(),
   categoryId: z.string().optional(),
   paid: z.string().transform((v) => v === "true").optional(),
   search: z.string().max(100).optional(),
   page: z.string().transform(Number).optional(),
   limit: z.string().transform(Number).optional(),
+});
+
+export const createAgendaCategorySchema = z.object({
+  name: z.string().min(1, "Nome obrigatorio").max(100),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Cor invalida"),
+  icon: z.string().max(50).optional(),
 });
 
 export const createCategorySchema = z.object({
