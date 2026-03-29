@@ -35,13 +35,21 @@ globalForAuthRateLimit.authRateLimitFallbackStore =
 function isRateLimitInfraError(error: unknown): boolean {
   const message =
     error instanceof Error ? error.message : String(error ?? "unknown");
+  const normalized = message.toLowerCase();
 
   return (
     message.includes("login_rate_limits") ||
     message.includes("LoginRateLimit") ||
     message.includes("does not exist") ||
     message.includes("Unknown table") ||
-    message.includes("Unknown column")
+    message.includes("Unknown column") ||
+    normalized.includes("too many connections") ||
+    normalized.includes("pool timeout") ||
+    normalized.includes("failed to retrieve a connection from pool") ||
+    normalized.includes("can't reach database server") ||
+    normalized.includes("cannot reach database server") ||
+    normalized.includes("server has gone away") ||
+    normalized.includes("connection refused")
   );
 }
 
