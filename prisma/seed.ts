@@ -1,8 +1,10 @@
 import "dotenv/config";
-import { PrismaClient } from "../src/generated/prisma";
+import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { DEFAULT_AGENDA_CATEGORIES, DEFAULT_FINANCE_CATEGORIES } from "../src/lib/constants";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("Iniciando seed...");
